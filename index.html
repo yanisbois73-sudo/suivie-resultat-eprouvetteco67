@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Suivi Bétonnage – V38.1 Firebase</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+/* --- STYLE COMPLET --- */
+body{
+    margin:0;
+    font-family: Arial, sans-serif;
+    background:#f4f4f4;
+}
+header{
+    background:#4CAF50;
+    color:white;
+    padding:10px 15px;
+}
+.header-inner{
+    max-width:900px;
+    margin:0 auto;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+}
+.header-title{
+    font-size:20px;
+    font-weight:bold;
+}
+.header-logo{
+    height:40px;
+    max-width:120px;
+    object-fit:contain;
+}
+.top-bar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:6px 10px;
+    background:#E8F5E9;
+    border-bottom:1px solid #C8E6C9;
+    font-size:13px;
+}
+.top-bar span{
+    font-weight:bold;
+    color:#2E7D32;
+}
+.top-bar button{
+    padding:4px 10px;
+    font-size:12px;
+    border-radius:999px;
+    border:none;
+    background:#4CAF50;
+    color:#fff;
+    cursor:pointer;
+    margin-left:5px;
+}
+.top-bar button:hover{background:#43A047;}
+
+.container{
+    max-width:900px;
+    margin:20px auto;
+    background:white;
+    padding:20px;
+    border-radius:12px;
+    box-shadow:0 2px 10px rgba(0,0,0,0.15);
+}
+label{
+    font-weight:bold;
+    margin-top:10px;
+    display:block;
+}
+input, select, textarea{
+    width:100%;
+    padding:10px;
+    margin-top:5px;
+    border-radius:6px;
+    border:1px solid #ccc;
+    font-size:15px;
+    box-sizing:border-box;
+}
+textarea{
+    resize:vertical;
+    min-height:60px;
+}
+button{
+    padding:10px 15px;
+    background:#4CAF50;
+    color:white;
+    border:none;
+    border-radius:6px;
+    cursor:pointer;
+    margin-top:10px;
+}
+button:hover{
+    background:#43A047;
+}
+.full-btn{
+    width:100%;
+    padding:12px;
+    font-size:16px;
+}
+.error{
+    color:red;
+    margin-top:10px;
+    font-size:14px;
+    text-align:center;
+}
+.hidden{display:none;}
+
+.rubrique{
+    background:white;
+    padding:20px;
+    margin-bottom:20px;
+    border-radius:12px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.15);
+    text-align:center;
+    font-size:20px;
+    font-weight:bold;
+    color:#2E7D32;
+    cursor:pointer;
+    transition:0.2s;
+}
+.rubrique:hover{
+    background:#E8F5E9;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    margin-top:20px;
+    font-size:14px;
+}
+th, td{
+    border:1px solid #ccc;
+    padding:8px;
+    text-align:center;
+}
+th{
+    background:#E8F5E9;
+    color:#2E7D32;
+}
+
+.ligne-rouge { background:#ffdddd !important; }
+.ligne-vert1 { background:#fff7cc !important; }
+.ligne-vert2 { background:#ddffdd !important; }
+
+.filters-row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    margin-bottom:10px;
+}
+.filters-row select,
+.filters-row input{
+    flex:1;
+    min-width:120px;
+}
+
+.btn-secondary{
+    background:#9E9E9E;
+}
+.btn-secondary:hover{
+    background:#757575;
+}
+
+.btn-export{
+    background:#1976D2;
+}
+.btn-export:hover{
+    background:#1565C0;
+}
+
+.plot-input::placeholder{
+    color:#bfbfbf;
+    opacity:1;
+}
+</style>
+</head>
+<body>
+
+<header>
+    <div class="header-inner">
+        <div class="header-title">Suivi Bétonnage – V38.1</div>
+        <img src="logo_co6co7.png" class="header-logo">
+    </div>
+</header>
+
+<div id="topBar" class="top-bar hidden">
+    <span id="roleLabel"></span>
+    <div>
+        <button onclick="goMenu()">Menu</button>
+        <button onclick="showView('global')">Tableau commun</button>
+        <button onclick="logout()">Déconnexion</button>
+    </div>
+</div>
+
+<!-- LOGIN -->
+<div id="view-login" class="container">
+    <h2>Connexion</h2>
+    <label>Identifiant</label>
+    <input id="login-identifiant">
+    <label>Code</label>
+    <input id="login-code" type="password">
+    <button class="full-btn" onclick="login()">Se connecter</button>
+    <div id="login-error" class="error"></div>
+</div>
+
+<!-- MENU -->
+<div id="view-menu" class="container hidden">
+    <h2>Menu RVT</h2>
+    <div class="rubrique" onclick="selectRVT('CO6')">RVT CO6</div>
+    <div class="rubrique" onclick="selectRVT('CO7')">RVT CO7</div>
+    <div class="rubrique" onclick="selectRVT('GN10')">RVT GN10</div>
+</div>
+
+<!-- CHEF -->
+<div id="view-chef" class="container hidden">
+    <div id="chef-page1">
+        <h2>Chef – Informations bétonnage</h2>
+
+        <label>Code plot</label>
+        <input id="chef-plot" class="plot-input" placeholder="C1-CO7-GN3-VI-R21/20-05">
+
+        <label>Date</label>
+        <input id="chef-date" type="date">
+
+        <label>Heure</label>
+        <input id="chef-heure" type="time">
+
+        <label>Nb éprouvettes</label>
+        <input id="chef-nb" type="number">
+
+        <label>N° BL dernière toupie</label>
+        <input id="chef-bl">
+
+        <label>Commentaire Chef</label>
+        <textarea id="chef-commentaire"></textarea>
+
+        <button class="full-btn" onclick="chefValider()">Valider</button>
+    </div>
+
+    <div id="chef-page2" class="hidden">
+        <h2>Chef – Tableau</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Code plot</th>
+                    <th>Date</th>
+                    <th>Heure</th>
+                    <th>Nb</th>
+                    <th>N° BL</th>
+                    <th>RVT</th>
+                </tr>
+            </thead>
+            <tbody id="chef-tableBody"></tbody>
+        </table>
+        <button onclick="chefRetour()">Retour</button>
+    </div>
+</div>
+
+<!-- LABO -->
+<div id="view-labo" class="container hidden">
+    <div id="labo-page1">
+        <h2>Labo – Résultats</h2>
+
+        <label>Code plot</label>
+        <input id="labo-plot" class="plot-input" placeholder="C1-CO7-GN3-VI-R21/20-05">
+
+        <label>Date</label>
+        <input id="labo-date" type="date">
+
+        <label>H1</label>
+        <input id="labo-h1" type="time">
+
+        <label>R1 (MPa)</label>
+        <input id="labo-r1" type="number" step="0.1">
+
+        <label>H2</label>
+        <input id="labo-h2" type="time">
+
+        <label>R2 (MPa)</label>
+        <input id="labo-r2" type="number" step="0.1">
+
+        <label>N° BL</label>
+        <input id="labo-bl">
+
+        <label>Zone</label>
+        <input id="labo-zone">
+
+        <label>Commentaire Labo</label>
+        <textarea id="labo-commentaire"></textarea>
+
+        <button class="full-btn" onclick="laboValider()">Valider</button>
+        <button class="full-btn" onclick="ouvrirMenuWhatsApp()">Envoyer WhatsApp</button>
+    </div>
+    <div id="labo-page2" class="hidden">
+        <h2>Labo – Tableau</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Code plot</th><th>Date</th><th>H1</th><th>R1</th>
+                    <th>H2</th><th>R2</th><th>BL</th><th>RVT</th><th>Zone</th>
+                </tr>
+            </thead>
+            <tbody id="labo-tableBody"></tbody>
+        </table>
+        <button onclick="laboRetour()">Retour</button>
+    </div>
+</div>
+
+<!-- POPUP WHATSAPP -->
+<div id="popupWhatsApp" class="container hidden" style="text-align:center;">
+    <h3>Envoyer WhatsApp</h3>
+    <button onclick="envoyerWhatsApp()">Envoyer aux chefs de zone</button>
+    <button class="btn-secondary" onclick="fermerMenuWhatsApp()">Fermer</button>
+</div>
+
+<!-- ADMIN -->
+<div id="view-admin" class="container hidden">
+    <h2>Configuration Admin – V38.1</h2>
+
+    <div class="section">
+        <h3>Ajouter / Modifier un compte</h3>
+
+        <label>Identifiant</label>
+        <input id="admin-id">
+
+        <label>Code</label>
+        <input id="admin-code">
+
+        <label>Rôle</label>
+        <select id="admin-role">
+            <option value="chef">Chef</option>
+            <option value="labo">Labo</option>
+            <option value="admin">Admin</option>
+        </select>
+
+        <label>Zone</label>
+        <input id="admin-zone">
+
+        <label>Numéro WhatsApp</label>
+        <input id="admin-numero">
+
+        <button onclick="adminEnregistrer()">Enregistrer</button>
+    </div>
+
+    <div class="section">
+        <h3>Comptes</h3>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Identifiant</th>
+                    <th>Code</th>
+                    <th>Rôle</th>
+                    <th>Zone</th>
+                    <th>Numéro</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="admin-table"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- GLOBAL -->
+<div id="global" class="container hidden">
+    <h2>Tableau commun – Chef + Labo (V38.1)</h2>
+
+    <div class="filters-row">
+        <select id="filterRVT" onchange="filtrerTableau()">
+            <option value="">RVT</option>
+            <option value="CO6">CO6</option>
+            <option value="CO7">CO7</option>
+            <option value="GN10">GN10</option>
+        </select>
+
+        <select id="filterZone" onchange="filtrerTableau()">
+            <option value="">Zone</option>
+        </select>
+
+        <input 
+            id="searchPlot" 
+            type="text" 
+            placeholder="Rechercher un plot..."
+            oninput="filtrerTableau()">
+    </div>
+
+    <button class="btn-export" onclick="exportCSV()">Exporter Excel</button>
+
+    <table>
+        <thead>
+            <tr>
+                <th>RVT</th>
+                <th>Zone</th>
+                <th>Plot</th>
+                <th>Date</th>
+                <th>BL</th>
+                <th>Nb</th>
+                <th>Résultats</th>
+                <th>Source</th>
+                <th>Commentaires</th>
+            </tr>
+        </thead>
+        <tbody id="global-tableBody"></tbody>
+    </table>
+</div>
+<!-- SDK Firebase (compat pour usage direct dans le navigateur) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
+<script>
+/* ============================================================
+   🔵 CONFIG FIREBASE – V38.1
+============================================================ */
+const firebaseConfig = {
+  apiKey: "AIzaSyACo596lD8P7S5JoiAayqCXaI0bB4jrB1g",
+  authDomain: "suivie-resultat-eprouvet-da18a.firebaseapp.com",
+  databaseURL: "https://suivie-resultat-eprouvet-da18a-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "suivie-resultat-eprouvet-da18a",
+  storageBucket: "suivie-resultat-eprouvet-da18a.firebasestorage.app",
+  messagingSenderId: "786226408552",
+  appId: "1:786226408552:web:db4882e818695e95de1fdd",
+  measurementId: "G-S5VV48YLH2"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+/* ============================================================
+   🔵 VARIABLES GLOBALES
+============================================================ */
+let comptes = {};
+let tableauChef = [];
+let tableauLabo = [];
+let rvtActuel = "";
+let utilisateurActuel = null;
+
+const comptesDefault = {
+    admin:{id:"admin",code:"admin456",role:"admin",zone:"-",numero:"-"},
+    chef01:{id:"chef01",code:"chef456",role:"chef",zone:"GN3",numero:"33600000001"},
+    chef02:{id:"chef02",code:"chef789",role:"chef",zone:"GN3",numero:"33600000002"},
+    labo01:{id:"labo01",code:"labo456",role:"labo",zone:"GN3",numero:"33600000003"}
+};
+
+/* ============================================================
+   🔵 CHARGEMENT INITIAL FIREBASE
+============================================================ */
+db.ref("users").once("value").then(snap => {
+    if(!snap.exists()){
+        db.ref("users").set(comptesDefault);
+    }
+});
+
+db.ref("users").on("value", snap => {
+    comptes = snap.val() || {};
+    remplirAdmin();
+});
+
+db.ref("chef").on("value", snap => {
+    const val = snap.val() || {};
+    tableauChef = Object.values(val);
+    remplirTableChef();
+});
+
+db.ref("labo").on("value", snap => {
+    const val = snap.val() || {};
+    tableauLabo = Object.values(val);
+    remplirTableLabo();
+});
+
+/* ============================================================
+   🔵 WHATSAPP
+============================================================ */
+function ouvrirMenuWhatsApp(){ 
+    document.getElementById("popupWhatsApp").classList.remove("hidden"); 
+}
+function fermerMenuWhatsApp(){ 
+    document.getElementById("popupWhatsApp").classList.add("hidden"); 
+}
+
+function envoyerWhatsApp(){
+    if(tableauLabo.length === 0){
+        alert("Aucune donnée labo disponible.");
+        return;
+    }
+
+    const last = tableauLabo[tableauLabo.length - 1];
+
+    const message =
+`Résultat bétonnage – ${last.rvt}
+
+Plot : ${last.plot}
+Date : ${last.date}
+BL : ${last.bl}
+Zone : ${last.zone}
+
+Écrasement :
+H1 : ${last.h1} — R1 : ${last.r1} MPa
+H2 : ${last.h2} — R2 : ${last.r2} MPa
+
+Message envoyé automatiquement depuis V38.1.`;
+
+    const zoneCible = last.zone;
+
+    const numeros = Object.values(comptes || {})
+        .filter(c => c.zone === zoneCible && c.numero && c.numero.trim() !== "")
+        .map(c => c.numero);
+
+    if(numeros.length === 0){
+        alert("Aucun numéro trouvé pour la zone : " + zoneCible);
+        return;
+    }
+
+    numeros.forEach(num => {
+        const url = "https://wa.me/" + num + "?text=" + encodeURIComponent(message);
+        window.open(url, "_blank");
+    });
+
+    fermerMenuWhatsApp();
+}
+
+/* ============================================================
+   🔵 TABLEAU GLOBAL – FUSION INTELLIGENTE
+============================================================ */
+function globalInit(){
+    const body = document.getElementById("global-tableBody");
+    body.innerHTML = "";
+
+    const fusion = [];
+    const plots = new Set([
+        ...tableauChef.map(x => x.plot),
+        ...tableauLabo.map(x => x.plot)
+    ]);
+
+    plots.forEach(plot => {
+        const chef = tableauChef.find(x => x.plot === plot) || {};
+        const labo = tableauLabo.find(x => x.plot === plot) || {};
+
+        const ligne = {
+            plot,
+            rvt: labo.rvt || chef.rvt,
+            zone: labo.zone || chef.zone,
+            date: labo.date || chef.date,
+            bl: labo.bl || chef.bl,
+            nb: chef.nb || "-",
+            h1: labo.h1 || "-",
+            r1: labo.r1 || "-",
+            h2: labo.h2 || "-",
+            r2: labo.r2 || "-",
+            commentaire: labo.commentaireLabo || chef.commentaireChef || "-",
+            source: labo.plot ? "Labo" : "Chef"
+        };
+
+        fusion.push(ligne);
+    });
+
+    fusion.forEach(l => {
+        let classe = "";
+
+        if(l.h1 === "-" || l.r1 === "-"){
+            classe = "ligne-rouge";
+        }
+        else if(l.h2 === "-" || l.r2 === "-"){
+            classe = "ligne-vert1";
+        }
+        else{
+            classe = "ligne-vert2";
+        }
+
+        body.innerHTML += `
+        <tr class="${classe}">
+            <td>${l.rvt}</td>
+            <td>${l.zone || "-"}</td>
+            <td>${l.plot}</td>
+            <td>${l.date || "-"}</td>
+            <td>${l.bl || "-"}</td>
+            <td>${l.nb || "-"}</td>
+            <td>
+                H1 : ${l.h1} — R1 : ${l.r1} MPa<br>
+                H2 : ${l.h2} — R2 : ${l.r2} MPa
+            </td>
+            <td>${l.source}</td>
+            <td>${l.commentaire}</td>
+        </tr>`;
+    });
+
+    const rows = document.querySelectorAll("#global-tableBody tr");
+
+    rows.forEach(r => {
+        r.ondblclick = () => {
+            if(!utilisateurActuel || utilisateurActuel.role !== "labo"){
+                return;
+            }
+
+            const plot = r.children[2].innerText;
+
+            const chef = tableauChef.findLast(x => x.plot === plot) || {};
+            const labo = tableauLabo.findLast(x => x.plot === plot) || {};
+
+            document.getElementById("labo-plot").value = plot;
+            document.getElementById("labo-date").value = labo.date || chef.date || "";
+            document.getElementById("labo-h1").value = labo.h1 || "";
+            document.getElementById("labo-r1").value = labo.r1 || "";
+            document.getElementById("labo-h2").value = labo.h2 || "";
+            document.getElementById("labo-r2").value = labo.r2 || "";
+            document.getElementById("labo-bl").value = labo.bl || chef.bl || "";
+            document.getElementById("labo-zone").value = labo.zone || chef.zone || "";
+            document.getElementById("labo-commentaire").value = labo.commentaireLabo || chef.commentaireChef || "";
+
+            showView("view-labo");
+        };
+    });
+
+    remplirZonesFiltre();
+}
+
+/* ============================================================
+   🔵 FILTRES
+============================================================ */
+function remplirZonesFiltre(){
+    const select = document.getElementById("filterZone");
+    select.innerHTML = '<option value="">Zone</option>';
+
+    const zones = new Set();
+
+    tableauChef.forEach(l => { if(l.zone) zones.add(l.zone); });
+    tableauLabo.forEach(l => { if(l.zone) zones.add(l.zone); });
+
+    zones.forEach(z => {
+        select.innerHTML += `<option value="${z}">${z}</option>`;
+    });
+}
+
+function filtrerTableau(){
+    const rvt = document.getElementById("filterRVT").value;
+    const zone = document.getElementById("filterZone").value;
+    const search = document.getElementById("searchPlot").value.toLowerCase();
+
+    const rows = document.querySelectorAll("#global-tableBody tr");
+
+    rows.forEach(r => {
+        const rv = r.children[0].innerText;
+        const zo = r.children[1].innerText;
+        const pl = r.children[2].innerText.toLowerCase();
+
+        let ok = true;
+
+        if(rvt && rv !== rvt) ok = false;
+        if(zone && zo !== zone) ok = false;
+        if(search && !pl.includes(search)) ok = false;
+
+        r.style.display = ok ? "" : "none";
+    });
+}
+
+/* ============================================================
+   🔵 EXPORT CSV
+============================================================ */
+function exportCSV(){
+    let csv = "RVT;Zone;Plot;Date;BL;Nb;H1;R1;H2;R2;Source;Commentaire\n";
+
+    const rows = document.querySelectorAll("#global-tableBody tr");
+
+    rows.forEach(r => {
+        if(r.style.display === "none") return;
+
+        const c = r.children;
+
+        const bloc = c[6].innerText.split("—");
+
+        const h1 = bloc[0].replace("H1 :","").trim();
+        const r1 = bloc[1].replace("R1 :","").replace("MPa","").trim();
+        const h2 = bloc[2].replace("H2 :","").trim();
+        const r2 = bloc[3].replace("R2 :","").replace("MPa","").trim();
+
+        csv += [
+            c[0].innerText,
+            c[1].innerText,
+            c[2].innerText,
+            c[3].innerText,
+            c[4].innerText,
+            c[5].innerText,
+            h1,r1,h2,r2,
+            c[7].innerText,
+            c[8].innerText
+        ].join(";") + "\n";
+    });
+
+    const blob = new Blob([csv], {type:"text/csv"});
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "tableau_V38_1.csv";
+    a.click();
+
+    URL.revokeObjectURL(url);
+}
+
+/* ============================================================
+   🔵 NAVIGATION + LOGIN
+============================================================ */
+function showView(id){
+    document.querySelectorAll(".container").forEach(v => v.classList.add("hidden"));
+    document.getElementById(id).classList.remove("hidden");
+
+    if(id !== "view-login"){
+        document.getElementById("topBar").classList.remove("hidden");
+    } else {
+        document.getElementById("topBar").classList.add("hidden");
+    }
+
+    if(id === "global") globalInit();
+}
+
+function goMenu(){ showView("view-menu"); }
+
+function logout(){
+    utilisateurActuel = null;
+    document.getElementById("login-identifiant").value = "";
+    document.getElementById("login-code").value = "";
+    showView("view-login");
+}
+
+function login(){
+    const id = document.getElementById("login-identifiant").value.trim();
+    const code = document.getElementById("login-code").value.trim();
+
+    db.ref("users/" + id).once("value").then(snap => {
+        const c = snap.val();
+
+        if(!c || c.code !== code){
+            document.getElementById("login-error").innerText = "Identifiants incorrects.";
+            return;
+        }
+
+        utilisateurActuel = c;
+        document.getElementById("topBar").classList.remove("hidden");
+        document.getElementById("roleLabel").innerText =
+            c.role.toUpperCase() + " – Zone " + (c.zone || "-");
+
+        if(c.role === "admin"){
+            showView("view-admin");
+        } else {
+            showView("view-menu");
+        }
+    });
+}
+</script>
+<script>
+/* ============================================================
+   🔵 RVT → CHEF / LABO
+============================================================ */
+function selectRVT(rvt){
+    rvtActuel = rvt;
+
+    if(utilisateurActuel.role === "chef") showView("view-chef");
+    else if(utilisateurActuel.role === "labo") showView("view-labo");
+    else if(utilisateurActuel.role === "admin") showView("view-admin");
+}
+
+/* ============================================================
+   🔵 CHEF – ENREGISTREMENT
+============================================================ */
+function chefValider(){
+    const plot = document.getElementById("chef-plot").value.trim();
+
+    if(!plot){
+        alert("Code plot vide.");
+        return;
+    }
+
+    const ligne = {
+        plot,
+        date: document.getElementById("chef-date").value,
+        heure: document.getElementById("chef-heure").value,
+        nb: document.getElementById("chef-nb").value,
+        bl: document.getElementById("chef-bl").value.trim(),
+        commentaireChef: document.getElementById("chef-commentaire").value.trim(),
+        rvt: rvtActuel,
+        zone: utilisateurActuel.zone
+    };
+
+    db.ref("chef/" + plot).once("value").then(snap => {
+        if(snap.exists()){
+            alert("Ce plot existe déjà. Le chef ne peut pas le modifier.");
+            return;
+        }
+
+        db.ref("chef/" + plot).set(ligne).then(() => {
+            document.getElementById("chef-page1").classList.add("hidden");
+            document.getElementById("chef-page2").classList.remove("hidden");
+        });
+    });
+}
+
+function remplirTableChef(){
+    const body = document.getElementById("chef-tableBody");
+    if(!body) return;
+    body.innerHTML = "";
+
+    tableauChef.forEach(l => {
+        body.innerHTML += `
+            <tr>
+                <td>${l.plot}</td>
+                <td>${l.date}</td>
+                <td>${l.heure}</td>
+                <td>${l.nb}</td>
+                <td>${l.bl}</td>
+                <td>${l.rvt}</td>
+            </tr>`;
+    });
+}
+
+function chefRetour(){
+    document.getElementById("chef-page2").classList.add("hidden");
+    document.getElementById("chef-page1").classList.remove("hidden");
+}
+
+/* ============================================================
+   🔵 LABO – ENREGISTREMENT
+============================================================ */
+function laboValider(){
+    const plot = document.getElementById("labo-plot").value.trim();
+
+    if(!plot){
+        alert("Code plot vide.");
+        return;
+    }
+
+    const ligne = {
+        plot,
+        date: document.getElementById("labo-date").value,
+        h1: document.getElementById("labo-h1").value,
+        r1: document.getElementById("labo-r1").value,
+        h2: document.getElementById("labo-h2").value,
+        r2: document.getElementById("labo-r2").value,
+        bl: document.getElementById("labo-bl").value.trim(),
+        zone: document.getElementById("labo-zone").value.trim(),
+        commentaireLabo: document.getElementById("labo-commentaire").value.trim(),
+        rvt: rvtActuel
+    };
+
+    db.ref("labo/" + plot).set(ligne).then(() => {
+        document.getElementById("labo-page1").classList.add("hidden");
+        document.getElementById("labo-page2").classList.remove("hidden");
+    });
+}
+
+function remplirTableLabo(){
+    const body = document.getElementById("labo-tableBody");
+    if(!body) return;
+    body.innerHTML = "";
+
+    tableauLabo.forEach(l => {
+        body.innerHTML += `
+            <tr>
+                <td>${l.plot}</td>
+                <td>${l.date}</td>
+                <td>${l.h1}</td>
+                <td>${l.r1}</td>
+                <td>${l.h2}</td>
+                <td>${l.r2}</td>
+                <td>${l.bl}</td>
+                <td>${l.rvt}</td>
+                <td>${l.zone}</td>
+            </tr>`;
+    });
+}
+
+function laboRetour(){
+    document.getElementById("labo-page2").classList.add("hidden");
+    document.getElementById("labo-page1").classList.remove("hidden");
+}
+
+/* ============================================================
+   🔵 ADMIN – MODIFIER + IDENTIFIANT MODIFIABLE
+============================================================ */
+function adminEnregistrer(){
+    const id = document.getElementById("admin-id").value.trim();
+    if(!id){ 
+        alert("Identifiant vide."); 
+        return; 
+    }
+
+    const compte = {
+        id,
+        code: document.getElementById("admin-code").value.trim(),
+        role: document.getElementById("admin-role").value,
+        zone: document.getElementById("admin-zone").value.trim(),
+        numero: document.getElementById("admin-numero").value.trim()
+    };
+
+    db.ref("users/" + id).set(compte).then(() => {
+        document.getElementById("admin-id").disabled = false;
+
+        document.getElementById("admin-id").value = "";
+        document.getElementById("admin-code").value = "";
+        document.getElementById("admin-role").value = "chef";
+        document.getElementById("admin-zone").value = "";
+        document.getElementById("admin-numero").value = "";
+    });
+}
+
+function remplirAdmin(){
+    const body = document.getElementById("admin-table");
+    if(!body) return;
+    body.innerHTML = "";
+
+    for(const k in (comptes || {})){
+        const c = comptes[k];
+        body.innerHTML += `
+            <tr>
+                <td>${c.id}</td>
+                <td>${c.code}</td>
+                <td>${c.role}</td>
+                <td>${c.zone}</td>
+                <td>${c.numero}</td>
+                <td>
+                    <button onclick="adminModifier('${c.id}')">Modifier</button>
+                    <button onclick="adminSupprimer('${c.id}')">Supprimer</button>
+                </td>
+            </tr>`;
+    }
+}
+
+function adminModifier(id){
+    const c = comptes[id];
+    if(!c) return;
+
+    document.getElementById("admin-id").value = c.id;
+    document.getElementById("admin-code").value = c.code;
+    document.getElementById("admin-role").value = c.role;
+    document.getElementById("admin-zone").value = c.zone;
+    document.getElementById("admin-numero").value = c.numero;
+
+    document.getElementById("admin-id").disabled = false;
+}
+
+function adminSupprimer(id){
+    db.ref("users/" + id).remove();
+}
+</script>
+
+</body>
+</html>
